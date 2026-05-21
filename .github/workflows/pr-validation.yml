@@ -1,0 +1,46 @@
+name: PR Validation Pipeline
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+
+  build-test-sonar:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'maven'
+
+      - name: Build
+        run: mvn clean compile
+
+      - name: Run Tests
+        run: mvn test
+
+      - name: Coverage Validation
+        run: mvn verify
+
+      - name: OWASP Dependency Scan
+        run: mvn dependency-check:check
+
+      - name: SonarQube Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          mvn sonar:sonar \
+          -Dsonar.projectKey=springboot-pr-checks \
+          -Dsonar.host.url=${SONAR_HOST_URL} \
+          -Dsonar.login=${SONAR_TOKEN}
